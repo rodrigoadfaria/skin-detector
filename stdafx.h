@@ -3,6 +3,10 @@
 // are changed infrequently
 //
 
+#ifdef _WIN32
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #pragma once
 
 #include "targetver.h"
