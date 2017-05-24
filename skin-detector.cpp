@@ -34,7 +34,7 @@ char filename[400] = "", immagine[200], output[400] = "";
 
 //sort of the histogram
 int *sortHist(int *iBins, int *values, int num) {
-	int i, tmp, ultimo, itmp;
+	int i, tmp, ultimo;
 	int tmpN = num;
 
 	while (tmpN >= 0)
@@ -60,7 +60,7 @@ int *sortHist(int *iBins, int *values, int num) {
 
 //Computation of Min and Max of the histogram (5th and 95th percentile)
 void calcMinMaxHist(int *yValues, int *iBins, int vect[2]) {
-	int i, j, flag = 0, *app, k, y;
+	int i, flag = 0, *app, k, y;
 	float maxVal = 0, percentage = 0;
 	app = (int*)calloc(bins, sizeof(int));
 	for (i = 0; i<yValues[0]; i++) app[i] = 0;
@@ -107,8 +107,8 @@ void calcMinMaxHist(int *yValues, int *iBins, int vect[2]) {
 //Computation of the vertices (Y0,CrMax) and (Y1,CrMax) of the trapezium in the YCr subspace
 //Computation of the vertices (Y2,CbMin) and (Y3,CbMin) of the trapezium in the YCb subspace
 void calculateValueMinMaxY(IplImage *image, double val, CvHistogram *hist, int minMax[2], int canal) {
-	int indTol;
-	int value, i, j, k, **yValue, min = 255, max = 0, vMin, vMax, *iBins, *app, *app2, *iBins2, indMax = 0, indMin = 0, **iBinsVal, tol;
+	int indTol, i, j, k, **yValue, min = 255, max = 0, *iBins, *app, *app2, *iBins2;
+	int indMax = 0, indMin = 0, **iBinsVal, tol;
 	uchar spk, l;
 	double tmpVal = val;
 	if (canal == 1)tol = tolCr; else tol = tolCb;
@@ -196,7 +196,6 @@ CvHistogram *calculateHist2(IplImage *plane1, IplImage *plane2)
 	cvZero(hist_img);
 	CvHistogram* hist;
 	float max_value = 0;
-	int i, j;
 
 	hist = cvCreateHist(2, hist_size, CV_HIST_ARRAY, ranges, 1);
 	cvCalcHist(planes, hist, 0, 0);
@@ -209,10 +208,9 @@ CvHistogram *calculateHist2(IplImage *plane1, IplImage *plane2)
 int main(int argc, char** argv)
 {
 	//CvCapture *capture =0;
-	IplImage *source, *frame_rgb, *frame_ycbcr, *bw_ycbcr, *bw_final, *y_plane, *cr_plane, *cb_plane, *grad, *gt;
-	int i, j, l, k, percentage = 50, minMaxCr[2], minMaxCb[2], height, width, perc;
+	IplImage *source, *frame_rgb, *frame_ycbcr, *bw_final, *y_plane, *cr_plane, *cb_plane, *grad;
+	int i, j, percentage = 50, minMaxCr[2], minMaxCb[2], height, width, perc;
 	int *histCr, *histCb;
-	float kk;
 	histCr = (int *)calloc(bins, sizeof(int));
 	histCb = (int *)calloc(bins, sizeof(int));
 	histYCr = cvCreateHist(2, hist_size, CV_HIST_ARRAY, ranges, 1);
@@ -244,6 +242,7 @@ int main(int argc, char** argv)
 	cvZero(y_plane);
 
 	cvCopy(source, frame_rgb, 0);
+	//10% of the pixels in the image associated with the maximum of Cr/minimum of Cb
 	perc = frame_rgb->width*frame_rgb->height*0.1 / 100;
 
 	cvCvtColor(frame_rgb, frame_ycbcr, CV_BGR2YCrCb);
@@ -306,7 +305,6 @@ int main(int argc, char** argv)
 		Y3 = minMaxCb[1];
 	}
 
-	int Y, Cr, Cb, valueY;
 	cvZero(bw_final);
 	double B, bCr, bCb, hCr, hCb, minb, maxb;
 	double ACr = 0, ACb = 0, sf, I, J, D1Cb, D1Cr, DCb, DCr, dCr, dCbS, CbS, HCr, HCb, alpha;
