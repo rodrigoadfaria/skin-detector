@@ -106,30 +106,39 @@ void calcMinMaxHist(int *yValues, int *iBins, int vect[2]) {
 
 //Computation of the vertices (Y0,CrMax) and (Y1,CrMax) of the trapezium in the YCr subspace
 //Computation of the vertices (Y2,CbMin) and (Y3,CbMin) of the trapezium in the YCb subspace
-void calculateValueMinMaxY(IplImage *image, double val, CvHistogram *hist, int minMax[2], int canal) {
+void calculateValueMinMaxY(IplImage *image, double val, CvHistogram *hist, int minMax[2], int channel) {
 	int indTol, i, j, k, **yValue, min = 255, max = 0, *iBins, *app, *app2, *iBins2;
 	int indMax = 0, indMin = 0, **iBinsVal, tol;
 	uchar spk, l;
+	//TODO: this tmpVal is also weird
 	double tmpVal = val;
-	if (canal == 1)tol = tolCr; else tol = tolCb;
+	if (channel == 1)tol = tolCr; else tol = tolCb;
 	indTol = (2 * (tol + 1)) - 1;
+	//TODO: this indTol parameter seems to be always 3
 	app = (int*)calloc(bins, sizeof(int));
 	iBins = (int*)calloc(bins, sizeof(int));
 	app2 = (int*)calloc(bins, sizeof(int));
 	iBins2 = (int*)calloc(bins, sizeof(int));
-	for (i = 0; i<bins; i++) { app[i] = 0; app2[i] = 0; iBins2[i] = 0; iBins[i] = 0; }
 	yValue = (int**)calloc(indTol, sizeof(int*));
 	iBinsVal = (int**)calloc(indTol, sizeof(int*));
-	for (i = 0; i<indTol; i++) {
+	for (i = 0; i<bins; i++) {
+		app[i] = 0; app2[i] = 0; iBins2[i] = 0; iBins[i] = 0;
+	}
+
+	for (i = 0; i < indTol; i++) {
 		yValue[i] = (int*)calloc(bins, sizeof(int*));
 		iBinsVal[i] = (int*)calloc(bins, sizeof(int*));
 	}
-	for (j = 0; j<indTol; j++) for (i = 0; i<bins; i++) { yValue[j][i] = 0; iBinsVal[j][i] = 0; }
+	for (j = 0; j < indTol; j++) {
+		for (i = 0; i < bins; i++) {
+			yValue[j][i] = 0; iBinsVal[j][i] = 0;
+		}
+	}
 
 	for (i = 0; i<image->height - 1; i++) {
 		for (j = 0; j<image->width - 1; j++) {
 
-			spk = ((uchar *)(image->imageData + i*image->widthStep))[j*image->nChannels + canal];
+			spk = ((uchar *)(image->imageData + i*image->widthStep))[j*image->nChannels + channel];
 			if (spk >= tmpVal - tol && spk <= tmpVal + tol) {
 				k = ((uchar *)(image->imageData + i*image->widthStep))[j*image->nChannels + 0];
 				int bin_val = 0;
@@ -144,11 +153,18 @@ void calculateValueMinMaxY(IplImage *image, double val, CvHistogram *hist, int m
 			}
 		}
 	}
+
 	for (i = 0; i<indTol; i++) {
-		for (k = 0; k < bins; k++) { app[k] = yValue[i][k]; iBins[k] = iBinsVal[i][k]; }
+		for (k = 0; k < bins; k++) {
+			app[k] = yValue[i][k]; iBins[k] = iBinsVal[i][k];
+		}
 		app = sortHist(app, iBins, bins);
 		j = 1;
-		for (k = 0; k<bins; k++)if (app[k] != 0) { app2[j] = app[k]; iBins2[j] = iBins[k]; j++; }
+		for (k = 0; k < bins; k++) {
+			if (app[k] != 0) {
+				app2[j] = app[k]; iBins2[j] = iBins[k]; j++;
+			}
+		}
 		app2[0] = j;
 		minMax[0] = 255; minMax[1] = 0;
 		//Computation of Min and Max of the histogram
@@ -233,7 +249,8 @@ int main(int argc, char** argv)
 	height = source->height; width = source->width;
 	frame_rgb = cvCreateImage(cvSize(width, height),
 		source->depth, source->nChannels);
-	frame_ycbcr = cvCreateImage(cvSize(frame_rgb->width, frame_rgb->height), frame_rgb->depth, frame_rgb->nChannels);
+	frame_ycbcr = cvCreateImage(cvSize(frame_rgb->width, frame_rgb->height),
+		frame_rgb->depth, frame_rgb->nChannels);
 	grad = cvCreateImage(cvSize(frame_rgb->width, frame_rgb->height), 8, 1);
 	bw_final = cvCreateImage(cvSize(frame_rgb->width, frame_rgb->height), 8, 1);
 	y_plane = cvCreateImage(cvSize(frame_rgb->width, frame_rgb->height), 8, 1);
@@ -292,7 +309,6 @@ int main(int argc, char** argv)
 
 	}
 
-	//
 	Y0 = 50, Y1 = 110, Y2 = 140, Y3 = 200;
 	// Store of Y0, Y1
 	if (max_valCr != -1) {
@@ -311,10 +327,16 @@ int main(int argc, char** argv)
 	B = 256;
 	bCr = Y1 - Y0;
 	bCb = Y3 - Y2;
-	if (bCr>bCb) { maxb = bCr; minb = bCb; }
-	else { maxb = bCb; minb = bCr; }
+	if (bCr > bCb) {
+		maxb = bCr; minb = bCb;
+	} else {
+		maxb = bCb; minb = bCr;
+	}
+
+	// Computation of YCr/YCb height
 	hCr = CrMax - CrMin;
 	hCb = CbMax - CbMin;
+	// Computation of the area of each trapezia
 	ACr = ((B + bCr)*hCr) / 2;
 	ACb = ((B + bCb)*hCb) / 2;
 	for (i = 0; i<frame_rgb->height; i++) {
@@ -325,41 +347,50 @@ int main(int argc, char** argv)
 			uchar Cb = ((uchar *)(frame_ycbcr->imageData + i*frame_ycbcr->widthStep))[j*frame_ycbcr->nChannels + 2];
 			HCr = 0; HCb = 0; CbS = 0;
 
-			//{//Calculate HCr
-			if (Y >= YMin && Y<Y0) {
+			//Calculate HCr
+			if (Y >= YMin && Y < Y0) {
 				HCr = CrMin + hCr*((Y - YMin) / (Y0 - YMin));
-			}
-			else if (Y >= Y0 && Y<Y1) HCr = CrMax;
-			else if (Y >= Y1 && Y <= YMax) {
+			} else if (Y >= Y0 && Y < Y1) {
+				HCr = CrMax;
+			} else if (Y >= Y1 && Y <= YMax) {
 				HCr = CrMin + hCr*((Y - YMax) / (Y1 - YMax));
 			}
 			//Calculate HCb
-			if (Y >= YMin && Y<Y2) {
+			if (Y >= YMin && Y < Y2) {
 				HCb = CbMin + hCb*((Y - Y2) / (YMin - Y2));
-			}
-			else if (Y >= Y2 && Y<Y3) HCb = CbMin;
-			else if (Y >= Y3 && Y <= YMax) {
+			} else if (Y >= Y2 && Y < Y3) {
+				HCb = CbMin;
+			} else if (Y >= Y3 && Y <= YMax) {
 				HCb = CbMin + hCb*((Y - Y3) / (YMax - Y3));
 			}
 
+			//Calculate the deltas
 			dCr = Cr - CrMin;
 			DCr = HCr - CrMin;
 			DCb = CbMax - HCb;
 			if (ACr>ACb) {
 				D1Cr = DCr*ACb / ACr; D1Cb = DCb;
-			}
-			else {
+			} else {
 				D1Cr = DCr; D1Cb = DCb*ACr / ACb;
 			}
 			alpha = D1Cb / D1Cr;
 
-			if (D1Cr > 0) dCbS = dCr*alpha; else dCbS = 255;
+			//Estimate Cb based on dCr - weird else condition here
+			if (D1Cr > 0) {
+				dCbS = dCr*alpha;
+			} else {
+				dCbS = 255;
+			}
 			CbS = CbMax - dCbS;
 			sf = (float)minb / (float)maxb;
-			//Condition C.0
-			I = fabs((D1Cr + D1Cb) - (dCr + dCbS))*sf;
-			//Condition C.1
-			if ((D1Cb + D1Cr)>0) J = dCbS*(dCbS + dCr) / (D1Cb + D1Cr); else J = 255;
+			//Condition C.0 - little bit different from the paper
+			I = fabs((D1Cr + D1Cb) - (dCr + dCbS)) * sf;
+			//Condition C.1 - little bit different from the paper. I guess this is to avoid zero division
+			if ((D1Cb + D1Cr) > 0) {
+				J = dCbS * (dCbS + dCr) / (D1Cb + D1Cr);
+			} else {
+				J = 255;
+			}
 			//Skin pixels
 			if (Cr - Cb >= I && abs(Cb - CbS) <= J) {
 				cvSet2D(bw_final, i, j, cvScalarAll(255));
