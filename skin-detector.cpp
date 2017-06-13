@@ -396,7 +396,6 @@ int main(int argc, char** argv)
 			if (Cr - Cb >= I && abs(Cr - CrS) <= J) {
 				cvSet2D(bw_final, i, j, cvScalarAll(255));
 			}
-			//printf("\ndCrS: %d CrS: %d I: %d J: %d", dCrS, CrS, I, J);
 		}
 	}
 
