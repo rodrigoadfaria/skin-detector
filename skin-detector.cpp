@@ -323,7 +323,7 @@ int main(int argc, char** argv)
 
 	cvZero(bw_final);
 	double B, bCr, bCb, hCr, hCb, minb, maxb;
-	double ACr = 0, ACb = 0, sf, I, J, D1Cb, D1Cr, DCb, DCr, dCr, dCbS, CbS, HCr, HCb, alpha;
+	double ACr = 0, ACb = 0, sf, I, Is, J, Js, D1Cb, D1Cr, DCb, DCr, dCr, dCb, dCbS, dCrS, CbS, CrS, HCr, HCb, alpha;
 	B = 256;
 	bCr = Y1 - Y0;
 	bCb = Y3 - Y2;
@@ -345,7 +345,7 @@ int main(int argc, char** argv)
 			uchar Y = ((uchar *)(frame_ycbcr->imageData + i*frame_ycbcr->widthStep))[j*frame_ycbcr->nChannels + 0];
 			uchar Cr = ((uchar *)(frame_ycbcr->imageData + i*frame_ycbcr->widthStep))[j*frame_ycbcr->nChannels + 1];
 			uchar Cb = ((uchar *)(frame_ycbcr->imageData + i*frame_ycbcr->widthStep))[j*frame_ycbcr->nChannels + 2];
-			HCr = 0; HCb = 0; CbS = 0;
+			HCr = 0; HCb = 0; CbS = 0; CrS = 0;
 
 			//Calculate HCr
 			if (Y >= YMin && Y < Y0) {
@@ -366,6 +366,7 @@ int main(int argc, char** argv)
 
 			//Calculate the deltas
 			dCr = Cr - CrMin;
+			dCb = CbMax - Cb;
 			DCr = HCr - CrMin;
 			DCb = CbMax - HCb;
 			if (ACr>ACb) {
@@ -381,18 +382,28 @@ int main(int argc, char** argv)
 			} else {
 				dCbS = 255;
 			}
+			if (D1Cb > 0) {
+				dCrS = dCb*alpha;
+			} else {
+				dCrS = 255;
+			}
+
 			CbS = CbMax - dCbS;
+			CrS = dCrS + CrMin;
 			sf = (float)minb / (float)maxb;
 			//Condition C.0 - little bit different from the paper
 			I = fabs((D1Cr + D1Cb) - (dCr + dCbS)) * sf;
+			Is = fabs((D1Cr + D1Cb) - (dCb + dCrS)) * sf;
 			//Condition C.1 - little bit different from the paper. I guess this is to avoid zero division
 			if ((D1Cb + D1Cr) > 0) {
 				J = dCbS * (dCbS + dCr) / (D1Cb + D1Cr);
+				Js = dCrS * (dCrS + dCb) / (D1Cb + D1Cr);
 			} else {
 				J = 255;
+				Js = 255;
 			}
 			//Skin pixels
-			if (Cr - Cb >= I && abs(Cb - CbS) <= J) {
+			if (Cr - Cb >= I && abs(Cb - CbS) <= J && Cr - Cb >= Is && abs(Cr - CrS) <= Js) {
 				cvSet2D(bw_final, i, j, cvScalarAll(255));
 			}
 		}
