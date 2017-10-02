@@ -323,13 +323,14 @@ int main(int argc, char** argv)
 
 	cvZero(bw_final);
 	double B, bCr, bCb, hCr, hCb, minb, maxb;
-	double ACr = 0, ACb = 0, sf, I, J, D1Cb, D1Cr, DCb, DCr, dCr, dCbS, CbS, HCr, HCb, alpha;
+	double ACr = 0, ACb = 0, sf, I, Is, J, Js, D1Cb, D1Cr, DCb, DCr, dCr, dCb, dCbS, dCrS, CbS, CrS, HCr, HCb, alpha;
 	B = 256;
 	bCr = Y1 - Y0;
 	bCb = Y3 - Y2;
 	if (bCr > bCb) {
 		maxb = bCr; minb = bCb;
-	} else {
+	}
+	else {
 		maxb = bCb; minb = bCr;
 	}
 
@@ -345,32 +346,38 @@ int main(int argc, char** argv)
 			uchar Y = ((uchar *)(frame_ycbcr->imageData + i*frame_ycbcr->widthStep))[j*frame_ycbcr->nChannels + 0];
 			uchar Cr = ((uchar *)(frame_ycbcr->imageData + i*frame_ycbcr->widthStep))[j*frame_ycbcr->nChannels + 1];
 			uchar Cb = ((uchar *)(frame_ycbcr->imageData + i*frame_ycbcr->widthStep))[j*frame_ycbcr->nChannels + 2];
-			HCr = 0; HCb = 0; CbS = 0;
+			HCr = 0; HCb = 0; CbS = 0; CrS = 0;
 
 			//Calculate HCr
 			if (Y >= YMin && Y < Y0) {
 				HCr = CrMin + hCr*((Y - YMin) / (Y0 - YMin));
-			} else if (Y >= Y0 && Y < Y1) {
+			}
+			else if (Y >= Y0 && Y < Y1) {
 				HCr = CrMax;
-			} else if (Y >= Y1 && Y <= YMax) {
+			}
+			else if (Y >= Y1 && Y <= YMax) {
 				HCr = CrMin + hCr*((Y - YMax) / (Y1 - YMax));
 			}
 			//Calculate HCb
 			if (Y >= YMin && Y < Y2) {
 				HCb = CbMin + hCb*((Y - Y2) / (YMin - Y2));
-			} else if (Y >= Y2 && Y < Y3) {
+			}
+			else if (Y >= Y2 && Y < Y3) {
 				HCb = CbMin;
-			} else if (Y >= Y3 && Y <= YMax) {
+			}
+			else if (Y >= Y3 && Y <= YMax) {
 				HCb = CbMin + hCb*((Y - Y3) / (YMax - Y3));
 			}
 
 			//Calculate the deltas
 			dCr = Cr - CrMin;
+			dCb = CbMax - Cb;
 			DCr = HCr - CrMin;
 			DCb = CbMax - HCb;
 			if (ACr>ACb) {
 				D1Cr = DCr*ACb / ACr; D1Cb = DCb;
-			} else {
+			}
+			else {
 				D1Cr = DCr; D1Cb = DCb*ACr / ACb;
 			}
 			alpha = D1Cb / D1Cr;
@@ -378,23 +385,49 @@ int main(int argc, char** argv)
 			//Estimate Cb based on dCr - weird else condition here
 			if (D1Cr > 0) {
 				dCbS = dCr*alpha;
-			} else {
+			}
+			else {
 				dCbS = 255;
 			}
+			if (D1Cb > 0) {
+				dCrS = dCb*alpha;
+			}
+			else {
+				dCrS = 255;
+			}
+
 			CbS = CbMax - dCbS;
+			CrS = dCrS + CrMin;
 			sf = (float)minb / (float)maxb;
 			//Condition C.0 - little bit different from the paper
 			I = fabs((D1Cr + D1Cb) - (dCr + dCbS)) * sf;
+			Is = fabs((D1Cr + D1Cb) - (dCb + dCrS)) * sf;
 			//Condition C.1 - little bit different from the paper. I guess this is to avoid zero division
 			if ((D1Cb + D1Cr) > 0) {
 				J = dCbS * (dCbS + dCr) / (D1Cb + D1Cr);
-			} else {
-				J = 255;
+				Js = dCrS * (dCrS + dCb) / (D1Cb + D1Cr);
 			}
+			else {
+				J = 255;
+				Js = 255;
+			}
+
 			//Skin pixels
-			if (Cr - Cb >= I && abs(Cb - CbS) <= J) {
+			bool cbsCondition = Cr - Cb >= I && abs(Cb - CbS) <= J;
+			bool crsCondition = Cr - Cb >= Is && abs(Cr - CrS) <= Js;
+			int counter = 0;
+			if (cbsCondition && crsCondition) {
 				cvSet2D(bw_final, i, j, cvScalarAll(255));
 			}
+			else if ((crsCondition || cbsCondition) && i > 1 && j > 1 && j < (frame_rgb->width - 1)) {
+				counter += cvGetReal2D(bw_final, i - 1, j - 1) == 255 ? 1 : 0;
+				counter += cvGetReal2D(bw_final, i - 1, j) == 255 ? 1 : 0;
+				counter += cvGetReal2D(bw_final, i - 1, j + 1) == 255 ? 1 : 0;
+				counter += cvGetReal2D(bw_final, i, j - 1) == 255 ? 1 : 0;
+				if (counter > 2)
+					cvSet2D(bw_final, i, j, cvScalarAll(255));
+			}
+
 		}
 	}
 
@@ -416,9 +449,9 @@ int main(int argc, char** argv)
 	cvReleaseImage(&frame_rgb);
 	cvReleaseImage(&frame_ycbcr);
 	cvReleaseImage(&bw_final);
-	printf("\nSkin segmented image in %s ", output);
-	printf("\nY0: %d Y1: %d Y2: %d Y3: %d Ymin: %f Ymax: %f CRmin: %f CRmax: %f CBmin: %f CBmax: %f",
-		Y0, Y1, Y2, Y3, YMin, YMax, CrMin, CrMax, CbMin, CbMax);
+	//printf("\nSkin segmented image in %s ", output);
+	printf("\nY0: %d Y1: %d Y2: %d Y3: %d Ymin: %f Ymax: %f CRmin: %f CRmax: %f CBmin: %f CBmax: %f Perc: %d Width: %d Height: %d",
+		Y0, Y1, Y2, Y3, YMin, YMax, CrMin, CrMax, CbMin, CbMax, perc, width, height);
 
 	return 0;
 }
