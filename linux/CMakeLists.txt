@@ -1,5 +1,0 @@
-cmake_minimum_required(VERSION 2.8)
-project( skin-detector )
-find_package( OpenCV REQUIRED )
-add_executable( skin-detector-ngh skin-detector.cpp )
-target_link_libraries( skin-detector-ngh ${OpenCV_LIBS} )
