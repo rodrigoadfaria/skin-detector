@@ -349,6 +349,9 @@ int main(int argc, char** argv)
 	// Computation of the area of each trapezia
 	ACr = ((B + bCr)*hCr) / 2;
 	ACb = ((B + bCb)*hCb) / 2;
+
+	bool rulesContainer[height][width][2];
+
 	for (i = 0; i<frame_rgb->height; i++) {
 		for (j = 0; j<frame_rgb->width; j++) {
 
@@ -424,19 +427,34 @@ int main(int argc, char** argv)
 			//Skin pixels
 			bool cbsCondition = Cr - Cb >= I && abs(Cb - CbS) <= J;
 			bool crsCondition = Cr - Cb >= Is && abs(Cr - CrS) <= Js;
-			int counter = 0;
-			if (cbsCondition && crsCondition) {
-				cvSet2D(bw_final, i, j, cvScalarAll(255));
-			}
-			else if ((crsCondition || cbsCondition) && i > 1 && j > 1 && j < (frame_rgb->width - 1)) {
-				counter += cvGetReal2D(bw_final, i - 1, j - 1) == 255 ? 1 : 0;
-				counter += cvGetReal2D(bw_final, i - 1, j) == 255 ? 1 : 0;
-				counter += cvGetReal2D(bw_final, i - 1, j + 1) == 255 ? 1 : 0;
-				counter += cvGetReal2D(bw_final, i, j - 1) == 255 ? 1 : 0;
-				if (counter > 2)
-					cvSet2D(bw_final, i, j, cvScalarAll(255));
+			bool rulesVector[2] = {cbsCondition, crsCondition};
+			rulesContainer[i][j][0] = cbsCondition;
+			rulesContainer[i][j][1] = crsCondition;
+
+			//if (cbsCondition && crsCondition)
+			//	cvSet2D(bw_final, i, j, cvScalarAll(255));
+		}
+	}
+
+	for (i = 1; i < (height - 1); i++) {
+		for (j = 1; j < (width - 1); j++) {
+			int counter, k, l;
+			counter = 0;
+
+			for (k = i-1; k <= i+1; k++) {
+				for (l = j-1; l <= j+1; l++) {
+					bool cbsCondition = rulesContainer[k][l][0];
+					bool crsCondition = rulesContainer[k][l][1];
+
+					if (cbsCondition)
+						counter += 1;
+				}
 			}
 
+			if (counter > 4)
+				cvSet2D(bw_final, i, j, cvScalarAll(255));
+			else
+				cvSet2D(bw_final, i, j, cvScalarAll(0));
 		}
 	}
 
