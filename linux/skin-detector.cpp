@@ -15,13 +15,13 @@
 
 // these methods definition is due deprecated functions of opencv old versions
 #define cvQueryHistValue_1D( hist, idx0 ) \
-    cvGetReal1D( (hist)->bins, (idx0) )
+	cvGetReal1D( (hist)->bins, (idx0) )
 #define cvQueryHistValue_2D( hist, idx0, idx1 ) \
-    cvGetReal2D( (hist)->bins, (idx0), (idx1) )
+	cvGetReal2D( (hist)->bins, (idx0), (idx1) )
 #define cvQueryHistValue_3D( hist, idx0, idx1, idx2 ) \
-    cvGetReal3D( (hist)->bins, (idx0), (idx1), (idx2) )
+	cvGetReal3D( (hist)->bins, (idx0), (idx1), (idx2) )
 #define cvQueryHistValue_nD( hist, idx ) \
-    cvGetRealND( (hist)->bins, (idx) )
+	cvGetRealND( (hist)->bins, (idx) )
 
 
 int bins = 256;
@@ -229,6 +229,38 @@ CvHistogram *calculateHist2(IplImage *plane1, IplImage *plane2)
 	return hist;
 }
 
+bool ***alloc_rules_vector(int rows, int columns, int depth) {
+	bool*** arr3d = (bool***) malloc(rows*sizeof(bool**));
+	for (int i=0; i<rows; i++)
+	{
+		arr3d[i] = (bool**) malloc(columns*sizeof(bool*));
+		for (int j=0; j<columns; j++)
+		{
+			arr3d[i][j] = (bool*) malloc(depth*sizeof(bool));
+		}
+
+	}
+
+	return arr3d;
+}
+
+void free_rules_vector(bool ***data, int xlen, int ylen)
+{
+	int i, j;
+
+	for (i=0; i < xlen; i++) {
+		if (data[i] != NULL) {
+			for (j=0; j < ylen; j++) {
+				if (data[i][j] != NULL) {
+					free(data[i][j]);
+				}
+			}
+			free(data[i]);
+		}
+	}
+	free(data);
+}
+
 
 int main(int argc, char** argv)
 {
@@ -350,7 +382,8 @@ int main(int argc, char** argv)
 	ACr = ((B + bCr)*hCr) / 2;
 	ACb = ((B + bCb)*hCb) / 2;
 
-	bool rulesContainer[height][width][2];
+	bool ***rulesContainer;
+	rulesContainer = alloc_rules_vector(height, width, 2);
 
 	for (i = 0; i<frame_rgb->height; i++) {
 		for (j = 0; j<frame_rgb->width; j++) {
@@ -427,7 +460,7 @@ int main(int argc, char** argv)
 			//Skin pixels
 			bool cbsCondition = Cr - Cb >= I && abs(Cb - CbS) <= J;
 			bool crsCondition = Cr - Cb >= Is && abs(Cr - CrS) <= Js;
-			bool rulesVector[2] = {cbsCondition, crsCondition};
+
 			rulesContainer[i][j][0] = cbsCondition;
 			rulesContainer[i][j][1] = crsCondition;
 
@@ -446,7 +479,7 @@ int main(int argc, char** argv)
 					bool cbsCondition = rulesContainer[k][l][0];
 					bool crsCondition = rulesContainer[k][l][1];
 
-					if (cbsCondition)
+					if (crsCondition && cbsCondition)
 						counter += 1;
 				}
 			}
@@ -465,9 +498,7 @@ int main(int argc, char** argv)
 	jpeg_params[2] = 0;
 
 	// check if we have the name of the destination file
-	if (argc == 3) {
-		strcpy(output, argv[2]);
-	}
+	strcpy(output, argv[2]);
 
 	//strcat(pathout, output);
 
@@ -480,5 +511,6 @@ int main(int argc, char** argv)
 	printf("\nY0: %d Y1: %d Y2: %d Y3: %d Ymin: %f Ymax: %f CRmin: %f CRmax: %f CBmin: %f CBmax: %f Perc: %d Width: %d Height: %d",
 		Y0, Y1, Y2, Y3, YMin, YMax, CrMin, CrMax, CbMin, CbMax, perc, width, height);
 
+	free_rules_vector(rulesContainer, height, width);
 	return 0;
 }
