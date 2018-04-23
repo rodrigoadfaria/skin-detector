@@ -19,6 +19,10 @@ We have four different branches, each one with:
 
   The combination of the rules given in the original (master branch) and reverse hipothesis.
 
+* combined_gs
+
+  This branch we are combining different pairs of Y min/max percentils in order to find out the best combination of them.
+
 * neighbors
   
   A neighborhood extended method based on the combined rules.
