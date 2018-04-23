@@ -27,6 +27,10 @@ We have four different branches, each one with:
   
   A neighborhood extended method based on the combined rules.
 
+* neighbors_ii
+  
+  A suplementary implementation of the neighbors method to reduce the diagonal effect and explore new techniques on neighborhood.
+
 ## Who do I talk to?
 ### Repo owner or admin
 
