@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <sstream>
+
+using namespace std;
 
 #define PI 3.14159265
 
@@ -68,7 +71,7 @@ int *sortHist(int *iBins, int *values, int num) {
 }
 
 //Computation of Min and Max of the histogram (5th and 95th percentile)
-void calcMinMaxHist(int *yValues, int *iBins, int vect[2]) {
+void calcMinMaxHist(int *yValues, int *iBins, int vect[2], int y_min_index, int y_max_index) {
 	int i, flag = 0, *app, k, y;
 	float maxVal = 0, percentage = 0;
 	app = (int*)calloc(bins, sizeof(int));
@@ -81,14 +84,14 @@ void calcMinMaxHist(int *yValues, int *iBins, int vect[2]) {
 		while (!flag) {
 			percentage = percentage + ((int)yValues[i]);
 
-			if (ceil((percentage / maxVal) * 100) >= 5) { flag = 1; y = yValues[i]; }
+			if (ceil((percentage / maxVal) * 100) >= y_min_index) { flag = 1; y = yValues[i]; }
 			i++;
 		}
 		vect[0] = i - 1;
 		i = 1; flag = 0; percentage = 0;
 		while (!flag) {
 			percentage = percentage + ((int)yValues[i]);
-			if (ceil((percentage / maxVal) * 100) >= 95) { flag = 1; y = yValues[i]; }
+			if (ceil((percentage / maxVal) * 100) >= y_max_index) { flag = 1; y = yValues[i]; }
 			i++;
 		}
 		vect[1] = i - 1;
@@ -115,7 +118,8 @@ void calcMinMaxHist(int *yValues, int *iBins, int vect[2]) {
 
 //Computation of the vertices (Y0,CrMax) and (Y1,CrMax) of the trapezium in the YCr subspace
 //Computation of the vertices (Y2,CbMin) and (Y3,CbMin) of the trapezium in the YCb subspace
-void calculateValueMinMaxY(IplImage *image, double val, CvHistogram *hist, int minMax[2], int channel) {
+void calculateValueMinMaxY(IplImage *image, double val, CvHistogram *hist,
+	int minMax[2], int channel, int y_min_index, int y_max_index) {
 	int indTol, i, j, k, **yValue, min = 255, max = 0, *iBins, *app, *app2, *iBins2;
 	int indMax = 0, indMin = 0, **iBinsVal, tol;
 	uchar spk, l;
@@ -177,7 +181,7 @@ void calculateValueMinMaxY(IplImage *image, double val, CvHistogram *hist, int m
 		app2[0] = j;
 		minMax[0] = 255; minMax[1] = 0;
 		//Computation of Min and Max of the histogram
-		calcMinMaxHist(app2, iBins2, minMax);
+		calcMinMaxHist(app2, iBins2, minMax, y_min_index, y_max_index);
 		if (minMax[0] != minMax[1]) {
 			if (minMax[0] != 255) { indMin++; if (minMax[0]<min) min = minMax[0]; }
 			if (minMax[1] != 0) { indMax++; if (minMax[1]>max) max = minMax[1]; }
@@ -234,7 +238,7 @@ int main(int argc, char** argv)
 {
 	//CvCapture *capture =0;
 	IplImage *source, *frame_rgb, *frame_ycbcr, *bw_final, *y_plane, *cr_plane, *cb_plane, *grad;
-	int i, j, percentage = 50, minMaxCr[2], minMaxCb[2], height, width, perc;
+	int i, j, percentage = 50, minMaxCr[2], minMaxCb[2], height, width, perc, y_min_index=5, y_max_index=95;
 	int *histCr, *histCb;
 	histCr = (int *)calloc(bins, sizeof(int));
 	histCb = (int *)calloc(bins, sizeof(int));
@@ -302,10 +306,28 @@ int main(int argc, char** argv)
 	histYCb = calculateHist2(y_plane, cb_plane);
 	histYCr = calculateHist2(y_plane, cr_plane);
 
+	//Check if the index of percentiles have been given
+	if (argc > 3 && argv[3] != NULL) {
+		istringstream iss( argv[3] );
+
+		if (!(iss >> y_min_index)) {
+			y_min_index = 5;
+		}
+	}
+
+	if (argc > 4 && argv[4] != NULL) {
+		istringstream ss( argv[4] );
+
+		if (!(ss >> y_max_index)) {
+			y_max_index = 95;
+		}
+	}
+
 	//Computation of (Y0,CrMax) and (Y1,CrMax) by means of the calculus of percentiles
 	if (max_valCr != -1) {
 		if (max_valCr>CrMax)max_valCr = CrMax;
-		calculateValueMinMaxY(frame_ycbcr, max_valCr, histYCr, minMaxCr, 1);
+		calculateValueMinMaxY(frame_ycbcr, max_valCr, histYCr, minMaxCr, 1,
+			y_min_index, y_max_index);
 		if (max_valCr<CrMax)CrMax = max_valCr;
 
 	}
@@ -313,7 +335,8 @@ int main(int argc, char** argv)
 	//Computation of (Y2,CbMin) and (Y3,CbMin) by means of the calculus of percentiles
 	if (min_valCb != -1) {
 		if (min_valCb<CbMin)min_valCb = CbMin;
-		calculateValueMinMaxY(frame_ycbcr, min_valCb, histYCb, minMaxCb, 2);
+		calculateValueMinMaxY(frame_ycbcr, min_valCb, histYCb, minMaxCb, 2,
+			y_min_index, y_max_index);
 		if (min_valCb>CbMin)CbMin = min_valCb;
 
 	}
@@ -414,9 +437,7 @@ int main(int argc, char** argv)
 	jpeg_params[2] = 0;
 
 	// check if we have the name of the destination file
-	if (argc == 3) {
-		strcpy(output, argv[2]);
-	}
+	strcpy(output, argv[2]);
 
 	//strcat_s(pathout, sizeof pathout, output);
 
