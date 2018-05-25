@@ -12,8 +12,6 @@
 #include <ctype.h>
 #include <sstream>
 
-using namespace std;
-
 #define PI 3.14159265
 
 // these methods definition is due deprecated functions of opencv old versions
@@ -308,17 +306,17 @@ int main(int argc, char** argv)
 
 	//Check if the index of percentiles have been given
 	if (argc > 3 && argv[3] != NULL) {
-		istringstream iss( argv[3] );
+		std::istringstream yminss( argv[3] );
 
-		if (!(iss >> y_min_index)) {
+		if (!(yminss >> y_min_index)) {
 			y_min_index = 5;
 		}
 	}
 
 	if (argc > 4 && argv[4] != NULL) {
-		istringstream ss( argv[4] );
+		std::istringstream ymaxss( argv[4] );
 
-		if (!(ss >> y_max_index)) {
+		if (!(ymaxss >> y_max_index)) {
 			y_max_index = 95;
 		}
 	}
